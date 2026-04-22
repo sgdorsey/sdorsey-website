@@ -1,0 +1,50 @@
+name: Deploy Hugo Site
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Hugo
+        uses: peaceiris/actions-hugo@v2
+        with:
+          hugo-version: 'latest'
+          extended: true
+
+      - name: Build Hugo site
+        run: hugo --gc --minify
+
+      - name: Fix file permissions
+        run: |
+          find public/ -type d -exec chmod 755 {} \;
+          find public/ -type f -exec chmod 644 {} \;
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>&1
+
+      - name: Deploy to Reclaim Hosting
+        run: |
+          rsync -avz --delete \
+            --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            public/ \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/public_html/
+
+      - name: Deployment complete
+        run: echo "🎉 Site deployed successfully to https://${{ secrets.SSH_HOST }}"
