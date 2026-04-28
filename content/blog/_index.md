@@ -1,5 +1,5 @@
 ---
-title: "Posts"
+title: "Blog"
 ---
 
 A minimal list of posts.
