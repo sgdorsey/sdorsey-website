@@ -1,4 +1,4 @@
-name: Deploy Hugo Site
+name: Deploy Site
 
 on:
   push:
@@ -8,16 +8,16 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
           fetch-depth: 0
 
       - name: Set up Hugo
-        uses: peaceiris/actions-hugo@v2
+        uses: peaceiris/actions-hugo@v3
         with:
           hugo-version: 'latest'
           extended: true
@@ -30,132 +30,18 @@ jobs:
           find public/ -type d -exec chmod 755 {} \;
           find public/ -type f -exec chmod 644 {} \;
 
-      - name: Debug - Check Secrets
+      - name: Set up SSH
         run: |
-          echo "=== Checking Secrets Configuration ==="
-          
-          # Check if secrets are set (without revealing values)
-          if [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
-            echo "❌ ERROR: SSH_PRIVATE_KEY is not set!"
-            exit 1
-          else
-            echo "✅ SSH_PRIVATE_KEY is set (length: ${#SSH_PRIVATE_KEY} chars)"
-          fi
-          
-          if [ -z "${{ secrets.SSH_USER }}" ]; then
-            echo "❌ ERROR: SSH_USER is not set!"
-            exit 1
-          else
-            echo "✅ SSH_USER is set: ${{ secrets.SSH_USER }}"
-          fi
-          
-          if [ -z "${{ secrets.SSH_HOST }}" ]; then
-            echo "❌ ERROR: SSH_HOST is not set!"
-            exit 1
-          else
-            echo "✅ SSH_HOST is set: ${{ secrets.SSH_HOST }}"
-          fi
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      - name: Debug - Test DNS Resolution
-        run: |
-          echo "=== Testing DNS Resolution ==="
-          if ping -c 2 ${{ secrets.SSH_HOST }}; then
-            echo "✅ Host resolves and responds to ping"
-          else
-            echo "⚠️  Host doesn't respond to ping (might still work)"
-          fi
-
-      - name: Debug - Test SSH Port
-        run: |
-          echo "=== Testing SSH Port (22) ==="
-          if timeout 5 bash -c "cat < /dev/null > /dev/tcp/${{ secrets.SSH_HOST }}/22"; then
-            echo "✅ SSH port 22 is open"
-          else
-            echo "❌ ERROR: Cannot connect to SSH port 22"
-            echo "This usually means:"
-            echo "  - SSH is not enabled on your Reclaim account"
-            echo "  - The hostname is wrong"
-            echo "  - Firewall is blocking SSH"
-            exit 1
-          fi
-
-      - name: Set up SSH key
-        run: |
-          echo "=== Setting up SSH ==="
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          
-          # Write the SSH key
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          
-          # Verify key file was created
-          if [ ! -s ~/.ssh/deploy_key ]; then
-            echo "❌ ERROR: SSH key file is empty!"
-            exit 1
-          fi
-          echo "✅ SSH key file created ($(wc -l < ~/.ssh/deploy_key) lines)"
-          
-          # Check if key looks valid (starts with BEGIN)
-          if head -1 ~/.ssh/deploy_key | grep -q "BEGIN"; then
-            echo "✅ SSH key appears to be in correct format"
-          else
-            echo "❌ ERROR: SSH key doesn't start with BEGIN line"
-            echo "First line is:"
-            head -1 ~/.ssh/deploy_key
-            exit 1
-          fi
+          echo "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
 
-      - name: Debug - Scan SSH Host Keys
+      - name: Deploy to server
         run: |
-          echo "=== Scanning SSH host keys ==="
-          if ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>&1; then
-            echo "✅ Host keys scanned successfully"
-            echo "Known hosts entries:"
-            cat ~/.ssh/known_hosts
-          else
-            echo "❌ ERROR: ssh-keyscan failed"
-            echo "This usually means the hostname is unreachable"
-            exit 1
-          fi
-
-      - name: Debug - Test SSH Connection
-        run: |
-          echo "=== Testing SSH Connection ==="
-          if ssh -i ~/.ssh/deploy_key \
-                 -o StrictHostKeyChecking=yes \
-                 -o ConnectTimeout=10 \
-                 -o BatchMode=yes \
-                 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-                 "echo 'SSH connection successful'" 2>&1; then
-            echo "✅ SSH authentication successful"
-          else
-            echo "❌ ERROR: SSH authentication failed"
-            echo ""
-            echo "Common causes:"
-            echo "  1. SSH key not authorized in cPanel"
-            echo "     → Go to cPanel → SSH Access → Manage SSH Keys → Authorize your key"
-            echo "  2. Wrong SSH_USER (should be your cPanel username)"
-            echo "  3. SSH key has a password (must be passwordless)"
-            echo ""
-            echo "Debug info:"
-            echo "  User: ${{ secrets.SSH_USER }}"
-            echo "  Host: ${{ secrets.SSH_HOST }}"
-            exit 1
-          fi
-
-      - name: Deploy to Reclaim Hosting
-        run: |
-          echo "=== Deploying to Reclaim Hosting ==="
-          rsync -avz --delete \
-            --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
-            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes" \
+          rsync -avz --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
+            -e "ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes" \
             public/ \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/public_html/
-
-      - name: Deployment complete
-        run: |
-          echo "🎉 Site deployed successfully!"
-          echo "Visit: https://${{ secrets.SSH_HOST }}"
+            ${{ secrets.SSH_USER }}@YOUR-DOMAIN.COM:~/public_html/
