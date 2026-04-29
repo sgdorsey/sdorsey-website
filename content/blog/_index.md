@@ -2,4 +2,4 @@
 title: "Blog"
 ---
 
-A minimal list of posts.
+Join me on my journey of studying the American South!

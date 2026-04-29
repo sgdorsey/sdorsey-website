@@ -1,9 +1,10 @@
 {{ define "main" }}
-  <h1>{{ .Title }}</h1>
+  <h2 class="page-title">{{ .Title }}</h2>
   {{ .Content }}
   {{ range .Pages }}
     <section>
-      <h2><a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a></h2>
+      <h2><a class="blog-title" href="{{ .RelPermalink }}">{{ .LinkTitle }}</a></h2>
+      <p>{{ .Date.Format "January 2, 2006" }}</p>
       {{ .Summary }}
     </section>
   {{ end }}

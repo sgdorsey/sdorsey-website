@@ -1,5 +1,5 @@
 +++
-date = '2026-03-19T20:57:01-04:00'
+date = '2025-08-19T20:57:01-04:00'
 draft = false
 title = 'The Importance of Notes (RE1)'
 +++

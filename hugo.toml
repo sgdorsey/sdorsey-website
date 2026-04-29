@@ -1,6 +1,7 @@
 baseURL = 'https://example.org/'
 languageCode = 'en-us'
 title = "Sharon Dorsey's Website"
+theme = "mythemesd"
 
 [markup]
   [markup.goldmark]

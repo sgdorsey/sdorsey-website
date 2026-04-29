@@ -2,16 +2,16 @@
   <div class="container py-5">
     <div class="row">
       <div class="col-md-12 text-center">
-        <h1 class="display-4">{{ .Title }}</h1>
+        <h2 class="page-title blog-title">{{ .Title }}</h2>
         <p class="lead">New Perspectives on the New South</p>
       </div>
     </div>
 
     <div class="row mt-4">
       <div class="col-12">
-        <ul class="list-unstyled">
+        <ul class="list-unstyled blog-title">
           {{ range .Pages }}
-            <li><a href="{{ .RelPermalink }}">{{ .Title }}</a> — {{ .Date.Format "Jan 2, 2006" }}</li>
+            <li><a class="blog-title" href="{{ .RelPermalink }}">{{ .Title }}</a> — {{ .Date.Format "Jan 2, 2006" }}</li>
           {{ end }}
         </ul>
       </div>
